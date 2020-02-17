@@ -9,7 +9,7 @@ const productSchema = mongoose.Schema({
 const orderSchema = mongoose.Schema({
     _id: mongoose.Schema.Types.ObjectId,
     products: {type:[productSchema], required: true},
-    price: {type: Number, required: true}
+    total: {type: Number, required: true}
 })
 
 module.exports = mongoose.model('Order', orderSchema);

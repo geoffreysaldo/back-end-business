@@ -27,7 +27,7 @@ app.use((req, res, next) => {
         'Origin, X-Requested-With, Content-Type, Accept, Authorization'
     );
     if (req.method === 'Options'){
-        res.header('Access-Control-Allow-Header', 'PUT, PSOT, PATCH, DELETE, GET');
+        res.header('Access-Control-Allow-Header', 'PUT, POST, PATCH, DELETE, GET');
         return res.status(200).json({});
     }
     next()
@@ -35,7 +35,7 @@ app.use((req, res, next) => {
 
 app.use('/products', productRoutes)
 app.use('/orders', orderRoutes)
-app.use('/signup', userRoutes)
+app.use('/', userRoutes)
 
 app.use((req, res, next) => {
     const error = new Error('Not found');
