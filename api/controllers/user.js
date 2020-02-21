@@ -4,8 +4,30 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
 
+
+exports.user_login_address = (req, res, next) => {
+    User.find({email: req.params.address})
+        .exec()
+        .then(user => {
+            if(user.length >= 1){
+                return res.status(409).json({
+                    error:"Mail déjà existant"
+                })
+            }
+            else {
+                return res.status(200).json({
+                    message:"Mail valide"
+                })
+            }
+        })
+    }
+
+
+
+
+
 exports.user_signup = (req, res, next) => {
-    User.find({email: req.body.email})
+    User.find({email: req.body.email.toLowerCase()})
         .exec()
         .then(user => {
             if(user.length >= 1){
@@ -23,7 +45,7 @@ exports.user_signup = (req, res, next) => {
                     else {
                         const user = new User({
                             _id: new mongoose.Types.ObjectId(),
-                            email: req.body.email,
+                            email: req.body.email.toLowerCase(),
                             password: hash
                     })
                     user
@@ -35,9 +57,8 @@ exports.user_signup = (req, res, next) => {
                         })
                     })
                     .catch(err => {
-                        console.log(err);
                         res.status(500).json({
-                            error: err
+                            error: "erreur"
                         })
                     });
                 }
@@ -47,7 +68,7 @@ exports.user_signup = (req, res, next) => {
 }
 
 exports.user_login = (req, res, next) => {
-    User.findOne({email: req.body.email})
+    User.findOne({email: req.body.email.toLowerCase()})
         .exec()
         .then(user => {
             if(user.length <= 1){
@@ -65,7 +86,7 @@ exports.user_login = (req, res, next) => {
                     }
                     if(result){
                         const token = jwt.sign({
-                            email: user.email,
+                            email: user.email.toLowerCase(),
                             userId: user._id
                         }, 
                         process.env.JWT_KEY,
