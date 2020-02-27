@@ -46,7 +46,9 @@ exports.user_signup = (req, res, next) => {
                         const user = new User({
                             _id: new mongoose.Types.ObjectId(),
                             email: req.body.email.toLowerCase(),
-                            password: hash
+                            password: hash,
+                            firstname: req.body.firstname,
+                            lastname:req.body.lastname
                     })
                     user
                     .save()
@@ -68,10 +70,11 @@ exports.user_signup = (req, res, next) => {
 }
 
 exports.user_login = (req, res, next) => {
+    console.log(req.body)
     User.findOne({email: req.body.email.toLowerCase()})
         .exec()
         .then(user => {
-            if(user.length <= 1){
+            if(user == null){
                 return res.status(401).json({
                     message: 'Auth failed'
                 })
@@ -95,6 +98,8 @@ exports.user_login = (req, res, next) => {
                         })
                         return res.status(200).json({
                             message:"Auth successful",
+                            firstname : user.firstname,
+                            lastname : user.lastname,
                             token: token
                         })
                     }
@@ -127,4 +132,22 @@ exports.user_delete = (req, res, next) => {
                 error: err
             })
         })
+}
+
+exports.user_names = (req, res, next) => {
+    User.findOne({_id:req.userData.userId})
+        .exec()
+        .then(
+            user => res.status(200).json({
+                firstname:user.firstname,
+                lastname:user.lastname
+        }))
+        .catch(
+            err => {
+                console.log(err)
+                res.status(500).json({
+                    error: err
+                })
+            }
+        )
 }

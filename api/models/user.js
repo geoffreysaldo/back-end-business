@@ -6,7 +6,9 @@ const userSchema = mongoose.Schema({
             required: true,
             unique: true,
             match: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/},
-    password: { type: String, required: true}
+    password: { type: String, required: true},
+    firstname: { type: String, required: true},
+    lastname: { type: String, required: true}
 })
 
 module.exports = mongoose.model('User', userSchema)
