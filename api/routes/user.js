@@ -12,6 +12,8 @@ router.post('/login', UserController.user_login);
 
 router.delete('/:userId', checkAuth, UserController.user_delete);
 
-router.get('/names', checkAuth, UserController.user_names);
+router.get('/names', checkAuth, UserController.user_names); // get user names for a specific jwt 
+
+router.get('/users', checkAuth, UserController.users);
 
 module.exports = router;

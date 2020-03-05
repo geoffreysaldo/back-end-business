@@ -151,3 +151,30 @@ exports.user_names = (req, res, next) => {
             }
         )
 }
+
+exports.users = (req, res, next) => {
+    User.find()
+        .exec()
+        .then(
+            usersList => {
+                if(usersList.length > 0) {
+                    res.status(200).json({
+                        usersList : usersList
+                    })
+                }
+                else {
+                    res.status(404).json({
+                        message: "Aucun utilisateur"
+                    })
+                }
+            }
+        )
+        .catch(
+            err => {
+                console.log(err)
+                res.status(500).json({
+                    error: err
+                })
+            }
+        )
+}
