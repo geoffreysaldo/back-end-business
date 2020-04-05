@@ -10,7 +10,11 @@ const userSchema = mongoose.Schema({
     secretToken: { type: String, required: true},
     firstname: { type: String, required: true},
     lastname: { type: String, required: true},
-    confirmed: {type: Boolean, defaultValue: false}
+    phone: { type: String, required: true},
+    confirmed: { type: Boolean, defaultValue: false},
+    address: { type: String, required: false},
+    city: { type: String, required: false},
+    postalcode: { type:String, required:false}
 })
 
 module.exports = mongoose.model('User', userSchema)

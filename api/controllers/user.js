@@ -21,6 +21,11 @@ exports.user_login_address = (req, res, next) => {
                 })
             }
         })
+        .catch(err => {
+            res.status(500).json({
+                error: "Un problème est survenue, veuillez recommencer"
+            })
+        })
     }
 
 
@@ -28,6 +33,7 @@ exports.user_login_address = (req, res, next) => {
 
 
 exports.user_signup = (req, res, next) => {
+    console.log(req.body)
     User.find({email: req.body.email.toLowerCase()})
         .exec()
         .then(user => {
@@ -37,7 +43,6 @@ exports.user_signup = (req, res, next) => {
                 })
             }
             else {
-                console.log("salut")
                 bcrypt.hash(req.body.password, 10, (err, hash) => {
                     if(err){
                         return res.status(500).json({
@@ -45,7 +50,6 @@ exports.user_signup = (req, res, next) => {
                         });
                     } 
                     else {
-                        
                         const secretToken = randomstring.generate();
                         const user = new User({
                             _id: new mongoose.Types.ObjectId(),
@@ -53,7 +57,8 @@ exports.user_signup = (req, res, next) => {
                             password: hash,
                             secretToken: secretToken,
                             firstname: req.body.firstname,
-                            lastname:req.body.lastname,
+                            lastname: req.body.lastname,
+                            phone: req.body.phone,
                             confirmed: false
                     })
                     user
@@ -73,7 +78,7 @@ exports.user_signup = (req, res, next) => {
                             }
                             else {
                                 res.status(201).json({
-                                    message: "Votre compte a été créer avec succès, il ne vous reste plus qu'à le valider",
+                                    message: "Votre compte a été créé avec succès. Un email de confirmation vient de vous être envoyé. ",
                                     user : result
                                 })                            
                             }
@@ -81,7 +86,7 @@ exports.user_signup = (req, res, next) => {
                     })
                     .catch(err => {
                         res.status(500).json({
-                            error: err
+                            error: "Un problème est survenue, veuillez recommencer"
                         })
                     });
                 }
@@ -95,9 +100,9 @@ exports.user_verify = (req, res, next) => {
     User.find({email: req.body.email.toLowerCase(), secretToken: req.body.secretToken})
         .exec()
         .then(user => {
-            if(user == null){
+            if(user[0] == null){
                 return res.status(401).json({
-                    message: 'Aucun utiliseur trouvé'
+                    message: 'Echec de validation'
                 })
             }
             else {
@@ -141,31 +146,34 @@ exports.user_login = (req, res, next) => {
             }
             else {
                 bcrypt.compare(req.body.password, user.password, (err, result) =>{
-                    if(err){
+                    if(!result){
                         return res.status(401).json({
                             message:"Auth failed"
                         })
                     }
-                    if(!user.confirmed){
-                        return res.status(401).json({
-                            message: 'Votre compte doit être validé'
-                        })
-                    }
-                    if(user.confirmed){
-                        const token = jwt.sign({
-                            email: user.email.toLowerCase(),
-                            userId: user._id
-                        }, 
-                        process.env.JWT_KEY,
-                        {
-                            expiresIn:"1h"
-                        })
-                        return res.status(200).json({
-                            message:"Auth successful",
-                            firstname : user.firstname,
-                            lastname : user.lastname,
-                            token: token
-                        })
+                    else { 
+                        if(!user.confirmed){
+                            return res.status(409).json({
+                                message: 'Votre compte doit être validé'
+                            })
+                        }
+                        if(user.confirmed){
+                            const token = jwt.sign({
+                                email: user.email.toLowerCase(),
+                                password: user.password,
+                                userId: user._id
+                            }, 
+                            process.env.JWT_KEY,
+                            {
+                                expiresIn:"1h"
+                            })
+                            return res.status(200).json({
+                                message:"Auth successful",
+                                firstname : user.firstname,
+                                lastname : user.lastname,
+                                token: token
+                            })
+                        }
                     }
                     res.status(401).json({
                         message: "Auth failed"
@@ -241,4 +249,123 @@ exports.users = (req, res, next) => {
                 })
             }
         )
+}
+
+exports.user_informations = (req, res, next) => {
+    User.findOne({_id:req.userData.userId})
+    .exec()
+    .then(
+        user => res.status(200).json({
+            id: user._id,
+            prenom: user.firstname,
+            nom: user.lastname,
+            adresse: user.address || null,
+            codePostal: user.postalcode || null,
+            ville: user.city || null,
+            telephone: user.phone,
+            email: user.email
+    }))
+    .catch(
+        err => {
+            console.log(err)
+            res.status(500).json({
+                error: err
+            })
+        }
+    )
+}
+
+
+exports.user_patch_address = (req, res, next) => {
+    bcrypt.compare(req.body.password, req.userData.password, (err, result) =>{
+        if(!result){
+            return res.status(401).json({
+                message:"Mot de passe est incorrect"
+            })
+        }
+        else {
+            User.updateOne({_id: req.userData.userId},
+                {$set:{address: req.body.adresse, city: req.body.ville, postalcode: req.body.codePostal}},
+                function(err,doc){
+                    if(err){
+                        return res.status(405).json({
+                            message:"Requête non effectuée"
+                        })
+                    }
+                    else {
+                        return res.status(200).json({
+                            adress : req.body.adresse,
+                            city: req.body.ville, 
+                            postalCode: req.body.codePostal,
+                            message:"La modification a été effectuée avec succès !"
+                        })
+                    }
+                })
+        }
+    }) 
+}
+
+exports.user_patch_contact = (req, res, next) => {
+    console.log(req.userData)
+    bcrypt.compare(req.body.password, req.userData.password, (err, result) =>{
+        if(!result){
+            return res.status(401).json({
+                message:"Mot de passe incorrect"
+            })
+        }
+        else{
+            if(req.body.update.phone != null && req.body.update.email != null ){
+            User.updateOne({_id: req.userData.userId},
+                {$set:{phone: req.body.update.phone, email: req.body.update.email}},
+                function(err,doc){
+                    if(err){
+                        return res.status(405).json({
+                            message:"Requête non effectuée"
+                        })
+                    }
+                    else {
+                        return res.status(200).json({
+                            phone : req.body.update.phone,
+                            email: req.body.update.email,
+                            message:"La modification a été effectuée avec succès !"
+                    })
+                }
+            })
+            }
+            if(req.body.update.phone != null && req.body.update.email == null ){
+                User.updateOne({_id: req.userData.userId},
+                    {$set:{phone: req.body.update.phone}},
+                    function(err,doc){
+                        if(err){
+                            return res.status(405).json({
+                                message:"Requête non effectuée"
+                            })
+                        }
+                        else {
+                            return res.status(200).json({
+                                phone : req.body.update.phone,
+                                message:"La modification a été effectuée avec succès !"
+                        })
+                    }
+                })
+            }
+            if(req.body.update.phone == null && req.body.update.email != null ){
+                User.updateOne({_id: req.userData.userId},
+                    {$set:{email: req.body.update.email}},
+                    function(err,doc){
+                        if(err){
+                            return res.status(405).json({
+                                message:"Requête non effectuée"
+                            })
+                        }
+                        else {
+                            return res.status(200).json({
+                                email: req.body.update.email,
+                                message:"La modification a été effectuée avec succès !"
+                        })
+                    }
+                })
+            }
+        }
+    })
 }

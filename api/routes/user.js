@@ -14,9 +14,15 @@ router.post('/login', UserController.user_login);
 
 router.delete('/:userId', checkAuth, UserController.user_delete);
 
-router.get('/names', checkAuth, UserController.user_names); // get user names for a specific jwt 
+router.get('/names', checkAuth, UserController.user_names); // get user names for a specific jwt
 
 router.get('/users', checkAuth, UserController.users);
+
+router.get('/informations', checkAuth, UserController.user_informations)
+
+router.patch('/address', checkAuth, UserController.user_patch_address)
+
+router.patch('/contact', checkAuth, UserController.user_patch_contact)
 
 
 module.exports = router;
