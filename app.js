@@ -9,7 +9,6 @@ const mongoose = require('mongoose');
 const productRoutes = require('./api/routes/product');
 const orderRoutes = require('./api/routes/order');
 const userRoutes = require('./api/routes/user');
-
 mongoose.connect(
     'mongodb+srv://GeoffeyMongo:' +
      process.env.MONGO_ATLAS_PW +
