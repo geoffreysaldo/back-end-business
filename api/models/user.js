@@ -7,6 +7,7 @@ const userSchema = mongoose.Schema({
             unique: true,
             match: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/},
     password: { type: String, required: true},
+    admin:{ type:Boolean, defaultValue:false, required:true },
     secretToken: { type: String, required: true},
     firstname: { type: String, required: true},
     lastname: { type: String, required: true},

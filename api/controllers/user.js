@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const randomstring = require('randomstring')
 const User = require('../models/user');
+const generator = require('generate-password');
 const transporter = require('../mailer/mailer')
 
 
@@ -26,11 +27,7 @@ exports.user_login_address = (req, res, next) => {
                 error: "Un problème est survenue, veuillez recommencer"
             })
         })
-    }
-
-
-
-
+}
 
 exports.user_signup = (req, res, next) => {
     console.log(req.body)
@@ -56,9 +53,13 @@ exports.user_signup = (req, res, next) => {
                             email: req.body.email.toLowerCase(),
                             password: hash,
                             secretToken: secretToken,
+                            admin: req.body.admin || false,
                             firstname: req.body.firstname,
                             lastname: req.body.lastname,
                             phone: req.body.phone,
+                            address: req.body.address,
+                            city: req.body.city,
+                            postalcode: req.body.postalCode,
                             confirmed: false
                     })
                     user
@@ -68,10 +69,12 @@ exports.user_signup = (req, res, next) => {
                             from: 'luchiwalaseyne@gmail.com',
                             to: req.body.email.toLowerCase(),
                             subject: 'Confirmation de compte Luchiwa sushi',
-                            text: 'Votre code est confirmation est :' + secretToken
+                            text: 'Afin de valider votre compte, veuillez joindre l\'url suivante : http://localhost:3001/validation_compte/'+ secretToken
                         };
                         transporter.sendMail(mailOptions, function(err, data){
                             if(err){
+                                // delete le compte ?
+                                console.log(err)
                                 res.status(500).json({
                                     error : "Un problème est survenue, veuillez recommencer"
                                 })                  
@@ -96,13 +99,13 @@ exports.user_signup = (req, res, next) => {
 }
 
 exports.user_verify = (req, res, next) => {
-    console.log(req.body.secretToken)
-    User.find({email: req.body.email.toLowerCase(), secretToken: req.body.secretToken})
+    console.log(req.params.secretToken)
+    User.find({secretToken: req.params.secretToken})
         .exec()
         .then(user => {
             if(user[0] == null){
-                return res.status(401).json({
-                    message: 'Echec de validation'
+                return res.status(200).json({
+                    message: 'Echec de validation, aucun compte associé'
                 })
             }
             else {
@@ -114,13 +117,13 @@ exports.user_verify = (req, res, next) => {
                         secretToken: ''
                     }, function(err, data){
                         if(data){
-                            return res.status(200).json({
+                            return res.status(201).json({
                                 user: data,
-                                message:"Votre compte a été créé avec succès, vous pouvez maitenant vous connecter"
+                                message:"Votre compte a été validé avec succès, vous pouvez maitenant vous connecter"
                             })
                         }
                         if(err){
-                            return res.status(401).json({
+                            return res.status(200).json({
                                 message:"Echec de validation"
                             }) 
                         }
@@ -161,7 +164,8 @@ exports.user_login = (req, res, next) => {
                             const token = jwt.sign({
                                 email: user.email.toLowerCase(),
                                 password: user.password,
-                                userId: user._id
+                                userId: user._id,
+                                admin: user.admin
                             }, 
                             process.env.JWT_KEY,
                             {
@@ -171,7 +175,8 @@ exports.user_login = (req, res, next) => {
                                 message:"Auth successful",
                                 firstname : user.firstname,
                                 lastname : user.lastname,
-                                token: token
+                                token: token,
+                                admin: user.admin
                             })
                         }
                     }
@@ -214,6 +219,30 @@ exports.user_names = (req, res, next) => {
                 firstname:user.firstname,
                 lastname:user.lastname
         }))
+        .catch(
+            err => {
+                console.log(err)
+                res.status(500).json({
+                    error: err
+                })
+            }
+        )
+}
+
+exports.users_interval = (req, res, next) => {
+    User.find().sort({lastname:1})
+        .exec()
+        .then(usersList => {             
+            if(usersList.length > 0) {
+                returnObject = {numberUsers: usersList.length, usersList: usersList.slice(req.params.interval*10,req.params.interval*10+10)}                    
+                res.status(200).json(returnObject)
+                }
+                else {
+                        res.status(404).json({
+                            message: "Aucun utilisateur"
+                        })
+                    }
+                })       
         .catch(
             err => {
                 console.log(err)
@@ -294,7 +323,7 @@ exports.user_patch_address = (req, res, next) => {
                     }
                     else {
                         return res.status(200).json({
-                            adress : req.body.adresse,
+                            address : req.body.adresse,
                             city: req.body.ville, 
                             postalCode: req.body.codePostal,
                             message:"La modification a été effectuée avec succès !"
@@ -306,7 +335,6 @@ exports.user_patch_address = (req, res, next) => {
 }
 
 exports.user_patch_contact = (req, res, next) => {
-    console.log(req.userData)
     bcrypt.compare(req.body.password, req.userData.password, (err, result) =>{
         if(!result){
             return res.status(401).json({
@@ -369,3 +397,135 @@ exports.user_patch_contact = (req, res, next) => {
         }
     })
 }
+
+exports.user_patch_secret_token = (req, res, next) => {
+    const secretToken = randomstring.generate();
+    User.update({email:req.body.email},
+    {$set:{secretToken:secretToken}},
+    function(err,doc){
+        if(err){
+            return res.status(405).json({
+                message:"Requête non effectuée"
+            })
+        }
+        else{
+            if(doc.n == 1){
+                let mailOptions = {
+                    from: 'luchiwalaseyne@gmail.com',
+                    to: req.body.email.toLowerCase(),
+                    subject: '[Regénération de mot de passe] Luchiwa sushi',
+                    text: 'Suivez ce lien pour modifier votre mot de passe: http://localhost:3001/modification_mdp/'+secretToken
+                };
+                transporter.sendMail(mailOptions, function(err, data){
+                    if(err){
+                        // remettre l'ancien mdp ?
+                        console.log(err)
+                        res.status(500).json({
+                            error : "Un problème est survenue"
+                        })                  
+                    }
+                    else {
+                        console.log("envoie mail")
+                        res.status(201).json({
+                            message: "Votre mot de passe est prêt à être modifié"
+                        })                            
+                    }
+                    })
+                }
+                else {
+                    console.log("L'email saisie n'est associé à aucun compte")
+                    res.status(404).json({
+                        error: "L'email saisie n'est associé à aucun compte",
+                    })  
+                }
+        }
+    })
+}
+
+exports.user_patch_password = (req, res, next) => {
+    bcrypt.hash(req.body.password, 10, (err, hash) =>{
+        if(err){
+            return res.status(500).json({
+                error: err
+            })
+        }
+        else {
+            User.updateOne({secretToken:req.params.secretToken},
+                {$set:{password:hash,secretToken:''}},
+                function(err,doc){
+                    if(err){
+                        return res.status(500).json({
+                            error:err
+                        })
+                    }
+                    else{
+                        if(doc.n === 1){
+                            return res.status(201).json({
+                                message:"Votre mot de passe a été modifié"
+                            })
+                        }
+                        else{
+                            return res.status(500).json({
+                                message:"Echec, votre mot de passe n'a pas pu être modifié"
+                            })
+                        }
+                    }
+                })
+            }
+    })
+}
+
+    /*let password = generator.generate({
+        length: 10,
+        numbers: true
+    })
+    bcrypt.hash(password, 10, (err, hash) => {
+        if(err){
+            return res.status(500).json({
+                error: err
+            });
+        } 
+        else {
+            User.updateOne({email: req.body.email},
+                {$set:{password:hash}}, 
+                function(err, doc){
+                    if(err){
+                        return res.status(405).json({
+                            message:"Requête non effectuée"
+                        })
+                    }
+                    else {
+                        if(doc.n == 1){
+                        let mailOptions = {
+                            from: 'luchiwalaseyne@gmail.com',
+                            to: req.body.email.toLowerCase(),
+                            subject: '[Regénération de mot de passe] Luchiwa sushi',
+                            text: 'Votre nouveau mot de passe est: ' + password
+                        };
+                        transporter.sendMail(mailOptions, function(err, data){
+                            if(err){
+                                // remettre l'ancien mdp ?
+                                console.log(err)
+                                res.status(500).json({
+                                    error : "Un problème est survenue"
+                                })                  
+                            }
+                            else {
+                                console.log("envoie mail")
+                                res.status(201).json({
+                                    message: "Votre mot de passe a été modifié, nous vous l'avons envoyé par mail à l'instant. "
+                                })                            
+                            }
+                            })
+                        }
+                        else {
+                            console.log("L'email saisie n'est associé à aucun compte")
+                            res.status(404).json({
+                                error: "L'email saisie n'est associé à aucun compte",
+                            })  
+                        }
+                    } 
+                })
+            }
+        })*/
+

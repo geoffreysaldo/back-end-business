@@ -9,6 +9,9 @@ const mongoose = require('mongoose');
 const productRoutes = require('./api/routes/product');
 const orderRoutes = require('./api/routes/order');
 const userRoutes = require('./api/routes/user');
+const timeRoutes = require('./api/routes/time');
+const zoneRoutes = require('./api/routes/zone');
+
 mongoose.connect(
     'mongodb+srv://GeoffeyMongo:' +
      process.env.MONGO_ATLAS_PW +
@@ -35,6 +38,8 @@ app.use((req, res, next) => {
 
 app.use('/products', productRoutes)
 app.use('/orders', orderRoutes)
+app.use('/horaires', timeRoutes)
+app.use('/zones', zoneRoutes)
 app.use('/', userRoutes)
 
 app.use((req, res, next) => {

@@ -1,10 +1,28 @@
 const mongoose = require('mongoose')
 
 const Product = require('../models/product')
+const io = require('../../socket');
 
 exports.products_get_all = (req, res, next) =>{
     Product.find()
         .select('_id name price')
+        .exec()
+        .then(docs => {
+            console.log(docs);
+            if(docs.length >= 0){
+                res.status(200).json(docs);
+            }
+        })
+        .catch(err => {
+            console.log(err);
+            res.status(500).json({
+                error: err
+            })
+        })
+}
+
+exports.products_by_category = (req, res, next) => {
+    Product.find({category:req.params.category})
         .exec()
         .then(docs => {
             console.log(docs);
@@ -48,13 +66,17 @@ exports.product_get_one = (req, res, next) => {
 exports.products_post = (req, res, next) =>{
     const product = new Product({
         _id:new mongoose.Types.ObjectId(),
+        category: req.body.category,
         name: req.body.name,
-        price: req.body.price
+        price: req.body.price,
+        comment: req.body.comment,
+        numberPieces: req.body.numberPieces,
+        availability: req.body.availability
     })
     product
         .save()
         .then(result => {
-            console.log(result);
+            io.getIO().emit('post_product', {action:'create', post:product})
             res.status(201).json({
                 message: "POST request has succeed",
                 createdProduct: result
@@ -69,13 +91,14 @@ exports.products_post = (req, res, next) =>{
 exports.products_patch = (req, res, next) =>{
     const id = req.params.productId;
     const updateOps = {};
-    for(const ops of req.body){
-        updateOps[ops.propName] = ops.value;
+    for(let [key, value] of Object.entries(req.body)){
+        updateOps[key] = value;
     }
-    Product.update({_id: id}, {$set: updateOps})
+    Product.findOneAndUpdate({_id: id}, {$set: updateOps},{"new":true})
         .exec()
         .then(result => {
             console.log(result)
+            io.getIO().emit('update_product', {action:'update', update:result})
             res.status(200).json({
                 result
             })

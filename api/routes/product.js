@@ -6,6 +6,8 @@ const ProductController = require('../controllers/product')
 
 router.get('/', ProductController.products_get_all)
 
+router.get('/:category', ProductController.products_by_category)
+
 router.post('/', checkAuth, ProductController.products_post)
 
 router.get('/:productId', ProductController.product_get_one)
